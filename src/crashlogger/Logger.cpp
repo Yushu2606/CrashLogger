@@ -13,8 +13,6 @@
 
 #include "crashlogger/CrashLogger.h"
 #include "crashlogger/Logger.h"
-#include "crashlogger/ModHelper.h"
-#include "crashlogger/SentryUploader.h"
 #include "crashlogger/StringUtils.h"
 #include "crashlogger/SymbolHelper.h"
 #include "crashlogger/SysInfoHelper.h"
@@ -537,11 +535,8 @@ void DumpModules() {
         auto hModule       = reinterpret_cast<HMODULE>(moduleBase);
         auto moduleName    = w2u8(moduleInfo.first);
         auto moduleVersion = w2u8(SymbolHelper::GetModuleVersionStr(hProcess, hModule));
-        if (moduleName == "bedrock_server_mod.exe" || moduleName == "bedrock_server.exe") {
-            moduleVersion = crashlogger::BdsVersion;
-        }
         if (moduleVersion.empty()) {
-            moduleVersion = "0.1.0";
+            moduleVersion = "0.0.0";
         }
         moduleMap[{moduleName, moduleVersion}] = {moduleBase, moduleInfo.second};
     }
@@ -635,7 +630,7 @@ void LogCrash(PEXCEPTION_POINTERS e, HANDLE _hProcess, HANDLE _hThread, DWORD _d
 
     printf("\n");
     pLogger->set_level(spdlog::level::info);
-    pLogger->info("BDS Crashed! Generating Stacktrace and MiniDump...");
+    pLogger->info("Program Crashed! Generating Stacktrace and MiniDump...");
 
     auto targetPathBuf = std::wstring(MAX_PATH, L'\0');
     if (auto targetPathLen = GetModuleFileNameExW(hProcess, nullptr, targetPathBuf.data(), MAX_PATH)) {
@@ -687,25 +682,6 @@ void LogCrash(PEXCEPTION_POINTERS e, HANDLE _hProcess, HANDLE _hThread, DWORD _d
     DumpModules();
     pCombinedLogger->flush();
 
-    if (!crashlogger::isEnableSentry) {
-        pLogger->info("Sentry is disabled, skipping upload...");
-        SymCleanup(hProcess);
-        return;
-    }
-
-    crashLogger::SentryUploader sentryUploader{
-        crashlogger::UserName,
-        minidmpName,
-        minidmpPath,
-        traceName,
-        tracePath,
-        crashlogger::IsDev,
-        crashlogger::LeviVersion
-    };
-    for (auto& [name, dsn, version, isInSuspectedModules] : ModHelper::pendingMods) {
-        sentryUploader.addModSentryInfo(name, dsn, version, isInSuspectedModules);
-    }
-    sentryUploader.uploadAll();
     SymCleanup(hProcess);
 }
 

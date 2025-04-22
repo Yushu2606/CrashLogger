@@ -9,12 +9,6 @@
 
 namespace crashlogger {
 
-inline std::string BdsVersion;
-inline bool        SilentMode     = false;
-inline bool        IsDev          = false;
-inline bool        isEnableSentry = false;
-inline std::string LeviVersion;
-inline std::string UserName;
-inline std::string ModDir;
+inline bool SilentMode = false;
 
 } // namespace crashlogger

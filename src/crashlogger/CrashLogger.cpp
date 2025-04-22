@@ -42,9 +42,9 @@ DWORD GetParentProcessID() {
     return ppid;
 }
 
-bool LegacyParseArgs(int argc, char** argv, std::string& bdsVersion, int& pid) {
+bool LegacyParseArgs(int argc, char** argv, int& pid) {
     using crashlogger::StringUtils::a2u8;
-    if (argc < 2 || argc > 3) {
+    if (argc != 2) {
         return false;
     }
     try {
@@ -52,16 +52,13 @@ bool LegacyParseArgs(int argc, char** argv, std::string& bdsVersion, int& pid) {
         if (pid <= 0) {
             return false;
         }
-        if (argc == 3) {
-            bdsVersion = a2u8(argv[2]);
-        }
         return true;
     } catch (const std::invalid_argument&) {
         return false;
     }
 }
 
-void ModernParseArgs(int argc, char** argv, std::string& bdsVersion, int& pid) {
+void ModernParseArgs(int argc, char** argv, int& pid) {
     using crashlogger::StringUtils::a2u8;
     cxxopts::Options options("CrashLogger", "A crash logger for Minecraft Bedrock Server");
     options.allow_unrecognised_options();
@@ -70,13 +67,7 @@ void ModernParseArgs(int argc, char** argv, std::string& bdsVersion, int& pid) {
         .add("h,help", "Print this help message")
         .add("v,version", "Print version information")
         .add("s,silent", "Silent mode, no console output except for crash report and error messages")
-        .add("b,bds", "The version of the BDS to be attached", cxxopts::value<std::string>()->default_value("0.0.0.0"))
-        .add("p,pid", "The PID of the process to be attached", cxxopts::value<int>()->default_value("-1"))
-        .add("enablesentry", "Enable Sentry error reporting")
-        .add("lv", "The version of LeviLamina", cxxopts::value<std::string>()->default_value(""))
-        .add("isdev", "Whether the server is in development mode")
-        .add("username", "The username of the user", cxxopts::value<std::string>()->default_value(""))
-        .add("moddir", "The directory of the mods", cxxopts::value<std::string>()->default_value(""));
+        .add("p,pid", "The PID of the process to be attached", cxxopts::value<int>()->default_value("-1"));
 
     auto result = options.parse(argc, argv);
     if (result.count("help")) {
@@ -87,16 +78,9 @@ void ModernParseArgs(int argc, char** argv, std::string& bdsVersion, int& pid) {
         std::cout << "CrashLogger " CRASHLOGGER_VERSION << std::endl;
         exit(0);
     }
-    pid        = result["pid"].as<int>();
-    bdsVersion = a2u8(result["bds"].as<std::string>());
+    pid = result["pid"].as<int>();
 
-    crashlogger::SilentMode     = result["silent"].as<bool>();
-    crashlogger::LeviVersion    = a2u8(result["lv"].as<std::string>());
-    crashlogger::IsDev          = result["isdev"].as<bool>();
-    crashlogger::UserName       = a2u8(result["username"].as<std::string>());
-    crashlogger::ModDir         = a2u8(result["moddir"].as<std::string>());
-    crashlogger::isEnableSentry = !crashlogger::LeviVersion.empty() && !crashlogger::UserName.empty() &&
-                                  !crashlogger::ModDir.empty() && result["enablesentry"].as<bool>();
+    crashlogger::SilentMode = result["silent"].as<bool>();
 }
 
 int main(int argc, char** argv) {
@@ -116,10 +100,10 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    int         pid;
-    bool        legacy = LegacyParseArgs(argc, argv, crashlogger::BdsVersion, pid);
+    int  pid;
+    bool legacy = LegacyParseArgs(argc, argv, pid);
     if (!legacy) {
-        ModernParseArgs(argc, argv, crashlogger::BdsVersion, pid);
+        ModernParseArgs(argc, argv, pid);
     }
 
     if (pid <= 0) {
